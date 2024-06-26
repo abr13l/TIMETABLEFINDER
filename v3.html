@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Schedule</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+        #clock, #nextClass, #countdown {
+            display: none;
+        }
+        #clock {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #nextClass {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        #countdown {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
+            box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            margin: 20px;
+            border-radius: 15px;
+            transition: transform 0.3s, background 0.3s;
+        }
+        .card:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 1);
+        }
+        h1, #searchPrompt {
+            color: #fff;
+            font-size: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        h2 {
+            color: #fff;
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 80%;
+            margin-bottom: 20px;
+            font-size: 18px;
+            border: 2px solid #2575fc;
+            border-radius: 5px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: #ff6347;
+            outline: none;
+            box-shadow: 0 0 10px #ff6347;
+        }
+        .hidden {
+            display: none;
+        }
+        #suggestions, #friendSuggestions {
+            text-align: left;
+            margin: 0 auto;
+            width: 80%;
+        }
+        .suggestion-item {
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .suggestion-item:hover {
+            background-color: #ddd;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin-top: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #2575fc;
+            color: white;
+            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+        }
+        button:hover {
+            background-color: #ff6347;
+            transform: scale(1.1);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        #friendInfo {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #fff;
+        }
+        #fullTimetable {
+            text-align: left;
+            margin: 20px auto;
+            width: 80%;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 15px;
+            opacity: 1;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        #fullTimetable.hidden {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        .day-schedule {
+            margin-bottom: 10px;
+            animation: fadeIn 0.5s;
+        }
+        .day-schedule h3 {
+            margin: 5px 0;
+        }
+        .friend-checkbox {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            transition: transform 0.3s;
+        }
+        .friend-checkbox input:checked + label {
+            transform: scale(1.05);
+            color: grey;
+        }
+        .dropdown {
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .dropdown.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="searchContainer">
+        <h1>Enter your or a friend's name!</h1>
+        <input type="text" id="nameInput" oninput="suggestNames()" placeholder="Type a name...">
+        <div id="suggestions"></div>
+    </div>
+    <div class="card hidden" id="scheduleCard">
+        <h1 id="nameTitle"></h1>
+        <div id="clock"></div>
+        <div id="nextClass"></div>
+        <div id="countdown"></div>
+        <button onclick="toggleFriendSearch()">Find a Friend</button>
+        <button onclick="toggleFullTimetable()">View Full Timetable</button>
+    </div>
+    <div id="friendSearchContainer" class="hidden dropdown">
+        <h2>Type in a friend's name</h2>
+        <input type="text" id="friendInput" oninput="suggestFriends()" placeholder="Type a name...">
+        <div id="friendSuggestions"></div>
+    </div>
+    <div id="friendInfo"></div>
+    <div id="fullTimetable" class="hidden"></div>
+
+    <script>
+        const schedules = {
+            "Ellis Ross": {
+                "Monday": [
+                    { time: "08:40", class: "PE Core", teacher: "Mr. Saunders", room: "PE" },
+                    { time: "09:30", class: "Mathematics", teacher: "Mr. Kitsos", room: "C219" },
+                    { time: "10:35", class: "NAT5", teacher: "Ms. Leitch", room: "C305" },
+                    { time: "11:25", class: "Music", teacher: "Ms. Leitch", room: "C305" },
+                    { time: "12:15", class: "Practical Cookery", teacher: "Mrs. Smith", room: "H104" },
+                    { time: "13:45", class: "Practical Cookery", teacher: "Mrs. Smith", room: "H104" },
+                    { time: "14:35", class: "Drama", teacher: "Ms. El Jorr", room: "WING" }
+                ],
+                "Tuesday": [
+                    { time: "08:45", class: "Registration", teacher: "", room: "" },
+                    { time: "09:00", class: "Mathematics", teacher: "Mr. Kitsos", room: "C219" },
+                    { time: "09:55", class: "Music", teacher: "Ms. Leitch", room: "C305" },
+                    { time: "11:05", class: "Drama", teacher: "Ms. El Jorr", room: "WING" },
+                    { time: "11:55", class: "Practical Cookery", teacher: "Mrs. Smith", room: "H104" },
+                    { time: "13:35", class: "RE Core", teacher: "Mr. Newton", room: "C301" },
+                    { time: "14:25", class: "PSE", teacher: "Mr. Conlan", room: "C024" }
+                ],
+                "Wednesday": [
+                    { time: "08:45", class: "Registration", teacher: "", room: "" },
+                    { time: "09:00", class: "English", teacher: "Mrs. Higgins", room: "C124" },
+                    { time: "09:55", class: "Music", teacher: "Ms. Leitch", room: "C305" },
+                    { time: "11:05", class: "Drama", teacher: "Ms. El Jorr", room: "WING" },
+                    { time: "11:55", class: "Business Management", teacher: "Mr. Gilchrist", room: "H122" },
+                    { time: "13:35", class: "Music", teacher: "Ms. Leitch", room: "C305" },
+                    { time: "14:25", class: "Drama", teacher: "Ms. El Jorr", room: "WING" }
+                ],
+                "Thursday": [
+                    { time: "08:45", class: "Registration", teacher: "", room: "" },
+                    { time: "09:00", class: "Mathematics", teacher: "Mr. Kitsos", room: "C219" },
+                    { time: "09:55", class: "Music", teacher: "Ms. Leitch", room: "C305" },
+                    { time: "11:05", class: "Practical Cookery", teacher: "Mrs. Smith", room: "H104" },
+                    { time: "11:55", class: "Business Management", teacher: "Mr. Gilchrist", room: "H122" },
+                    { time: "13:35", class: "Business Management", teacher: "Mr. Gilchrist", room: "H122" },
+                    { time: "14:25", class: "Drama", teacher: "Ms. El Jorr", room: "C017" }
+                ],
+                "Friday": [
+                    { time: "08:45", class: "Registration", teacher: "", room: "" },
+                    { time: "09:00", class: "Spanish", teacher: "Ms. Oswald", room: "C133" },
+                    { time: "09:55", class: "NAT5", teacher: "Mrs. Oswald", room: "C133" },
+                    { time: "11:05", class: "Drama", teacher: "Ms. El Jorr", room: "WING" },
+                    { time: "11:55", class: "Business Management", teacher: "Mr. Gilchrist", room: "H122" },
+                    { time: "13:35", class: "Spanish", teacher: "Ms. Lisbona", room: "C122" },
+                    { time: "14:25", class: "Spanish", teacher: "Ms. Lisbona", room: "C122" }
+                ]
+            },
+            "Austin Blackie": {
+                "Monday": [
+                    { time: "08:40", class: "PE Core", teacher: "Mrs. Smith (Guidance)", room: "C022" },
+                    { time: "09:30", class: "English", teacher: "Miss Judge", room: "C106" },
+                    { time: "10:35", class: "Chemistry", teacher: "Mr. White", room: "S116" },
+                    { time: "11:25", class: "Mathematics", teacher: "Miss Dawson", room: "C116" },
+                    { time: "12:15", class: "Practical Cookery", teacher: "Mr. HWB1", room: "H104" },
+                    { time: "13:45", class: "Practical Cookery", teacher: "Mr. HWB1", room: "H104" },
+                    { time: "14:35", class: "Chemistry", teacher: "Mr. White", room: "S116" }
+                ],
+                "Tuesday": [
+                    { time: "08:40", class: "Chemistry", teacher: "Mr. White", room: "S116" },
+                    { time: "09:30", class: "English", teacher: "Miss Judge", room: "C106" },
+                    { time: "10:35", class: "RMPS", teacher: "Mrs. Newton", room: "C301" },
+                    { time: "11:25", class: "Mathematics", teacher: "Miss Dawson", room: "C116" },
+                    { time: "12:15", class: "Practical Cookery", teacher: "Mr. HWB1", room: "H104" },
+                    { time: "13:45", class: "PE Core", teacher: "Mr. Sykes", room: "PE" },
+                    { time: "14:35", class: "Mathematics", teacher: "Miss Dawson", room: "C116" }
+                ],
+                "Wednesday": [
+                    { time: "09:00", class: "Chemistry", teacher: "Mr. White", room: "S116" },
+                    { time: "09:55", class: "English", teacher: "Miss Judge", room: "C106" },
+                    { time: "11:05", class: "RMPS", teacher: "Mrs. Newton", room: "C301" },
+                    { time: "11:55", class: "Mathematics", teacher: "Miss Dawson", room: "C116" },
+                    { time: "12:45", class: "Practical Cookery", teacher: "Mr. HWB1", room: "H104" },
+                    { time: "14:25", class: "PE Core", teacher: "Mr. Sykes", room: "PE" },
+                    { time: "15:15", class: "Drama", teacher: "Miss Castle", room: "C015" }
+                ],
+                "Thursday": [
+                    { time: "09:00", class: "Drama", teacher: "Miss Castle", room: "C015" },
+                    { time: "09:55", class: "RMPS", teacher: "Mrs. Newton", room: "C301" },
+                    { time: "11:05", class: "History", teacher: "Mrs. Renfrew", room: "C206" },
+                    { time: "11:55", class: "PE Core", teacher: "Miss McWilliam", room: "Gym" },
+                    { time: "12:45", class: "Practical Cookery", teacher: "Mr. HWB1", room: "H104" },
+                    { time: "14:25", class: "Mathematics", teacher: "Miss Dawson", room: "C116" },
+                    { time: "15:15", class: "History", teacher: "Mrs. Renfrew", room: "C206" }
+                ],
+                "Friday": [
+                    { time: "09:00", class: "Mathematics", teacher: "Miss Dawson", room: "C116" },
+                    { time: "09:55", class: "History", teacher: "Mrs. Renfrew", room: "C206" },
+                    { time: "11:05", class: "Chemistry", teacher: "Mr. White", room: "S116" },
+                    { time: "11:55", class: "English", teacher: "Miss Judge", room: "C106" },
+                    { time: "12:45", class: "RMPS", teacher: "Mrs. Newton", room: "C301" },
+                    { time: "14:25", class: "Practical Cookery", teacher: "Mr. HWB1", room: "H104" },
+                    { time: "15:15", class: "Drama", teacher: "Mrs. Riddell", room: "A115" }
+                ]
+            },
+            "Raine Marshall": {
+                "Monday": [
+                    { time: "08:40", class: "PE Core", teacher: "Mrs. Squire", room: "C024" },
+                    { time: "09:30", class: "Mathematics", teacher: "Ms. Baxter", room: "C217" },
+                    { time: "10:35", class: "Early Learning & Childcare", teacher: "Miss Ross", room: "H102" },
+                    { time: "11:25", class: "Biology", teacher: "Miss Meney", room: "S110" },
+                    { time: "12:15", class: "English", teacher: "Mr. Conlan", room: "C124" },
+                    { time: "13:45", class: "Chemistry", teacher: "Mr. Wilson", room: "S120" },
+                    { time: "14:35", class: "Art & Design", teacher: "Mr. Wiseman", room: "C334" }
+                ],
+                "Tuesday": [
+                    { time: "09:00", class: "Mathematics", teacher: "Ms. Baxter", room: "C217" },
+                    { time: "09:55", class: "Biology", teacher: "Miss Meney", room: "S110" },
+                    { time: "11:05", class: "Early Learning & Childcare", teacher: "Miss Ross", room: "H102" },
+                    { time: "11:55", class: "Early Learning & Childcare", teacher: "Miss Ross", room: "H102" },
+                    { time: "12:45", class: "RE Core", teacher: "Mrs. Newton", room: "C301" },
+                    { time: "13:35", class: "Drama", teacher: "Ms. El Jorr", room: "C017" }
+                ],
+                "Wednesday": [
+                    { time: "09:00", class: "Mathematics", teacher: "Ms. Baxter", room: "C217" },
+                    { time: "09:55", class: "Biology", teacher: "Miss Meney", room: "S110" },
+                    { time: "11:05", class: "Drama", teacher: "Ms. El Jorr", room: "WING" },
+                    { time: "11:55", class: "Mathematics", teacher: "Ms. Baxter", room: "C217" },
+                    { time: "12:45", class: "Early Learning & Childcare", teacher: "Miss Ross", room: "H102" },
+                    { time: "14:25", class: "PE Core", teacher: "Mrs. Dougall", room: "PE" }
+                ],
+                "Thursday": [
+                    { time: "09:00", class: "Biology", teacher: "Miss Meney", room: "S110" },
+                    { time: "09:55", class: "Mathematics", teacher: "Ms. Baxter", room: "C217" },
+                    { time: "11:05", class: "English", teacher: "Mrs. Higgins", room: "C124" },
+                    { time: "11:55", class: "Drama", teacher: "Ms. El Jorr", room: "WING" },
+                    { time: "12:45", class: "Art & Design", teacher: "Mr. Wiseman", room: "C334" },
+                    { time: "14:25", class: "Early Learning & Childcare", teacher: "Miss Ross", room: "H102" }
+                ],
+                "Friday": [
+                    { time: "09:00", class: "Art & Design", teacher: "Mr. Wiseman", room: "C334" },
+                    { time: "09:55", class: "Drama", teacher: "Ms. El Jorr", room: "WING" },
+                    { time: "11:05", class: "Chemistry", teacher: "Mr. Wilson", room: "S120" },
+                    { time: "11:55", class: "Chemistry", teacher: "Mr. Wilson", room: "S120" },
+                    { time: "12:45", class: "PE Core", teacher: "Mr. Sykes", room: "PE" },
+                    { time: "14:25", class: "English", teacher: "Mr. Conlan", room: "C124" }
+                ]
+            }
+        };
+
+        let currentUser = '';
+
+        function suggestNames() {
+            const input = document.getElementById('nameInput').value.toLowerCase();
+            const suggestions = document.getElementById('suggestions');
+            suggestions.innerHTML = '';
+            if (input.length === 0) return;
+
+            for (const name in schedules) {
+                if (name.toLowerCase().includes(input)) {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.classList.add('suggestion-item');
+                    suggestionItem.innerText = name;
+                    suggestionItem.onclick = () => loadSchedule(name);
+                    suggestions.appendChild(suggestionItem);
+                }
+            }
+        }
+
+        function loadSchedule(name) {
+            currentUser = name;
+            document.getElementById('searchContainer').style.display = 'none';
+            const scheduleCard = document.getElementById('scheduleCard');
+            scheduleCard.classList.remove('hidden');
+            document.getElementById('nameTitle').innerText = `Class Schedule for ${name}`;
+            document.getElementById('clock').style.display = 'block';
+            document.getElementById('nextClass').style.display = 'block';
+            document.getElementById('countdown').style.display = 'block';
+
+            const schedule = schedules[name];
+            updateTime(schedule);
+            setInterval(() => updateTime(schedule), 1000);
+        }
+
+        function updateTime(schedule) {
+            const now = new Date();
+            document.getElementById('clock').innerHTML = `Current Time: ${now.toLocaleTimeString()}<br>Date: ${now.toLocaleDateString()}`;
+            updateNextClass(now, schedule);
+        }
+
+        function updateNextClass(now, schedule) {
+            const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const todaySchedule = schedule[day];
+            if (!todaySchedule) {
+                document.getElementById('nextClass').innerHTML = "No classes today!";
+                document.getElementById('countdown').innerHTML = "";
+                return;
+            }
+            let classFound = false;
+            for (const cls of todaySchedule) {
+                const classTime = new Date(now.toDateString() + ' ' + cls.time);
+                if (now < classTime) {
+                    document.getElementById('nextClass').innerHTML = `Next Class: ${cls.class}<br>Teacher: ${cls.teacher}<br>Room: ${cls.room}`;
+                    startCountdown(classTime);
+                    classFound = true;
+                    break;
+                }
+            }
+            if (!classFound) {
+                updateNextClassTomorrow(now, day, schedule);
+            }
+        }
+
+        function updateNextClassTomorrow(now, day, schedule) {
+            const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            let nextDayIndex = (daysOfWeek.indexOf(day) + 1) % 7;
+            if (day === "Friday") {
+                document.getElementById('nextClass').innerHTML = "You are off tomorrow!";
+                document.getElementById('countdown').innerHTML = "";
+                return;
+            }
+            if (day === "Saturday") {
+                document.getElementById('nextClass').innerHTML = "You are off today!";
+                document.getElementById('countdown').innerHTML = "";
+                return;
+            }
+            while (nextDayIndex < daysOfWeek.length && !schedule[daysOfWeek[nextDayIndex]]) {
+                nextDayIndex = (nextDayIndex + 1) % 7;
+            }
+            const nextDay = daysOfWeek[nextDayIndex];
+            const nextDaySchedule = schedule[nextDay];
+            const firstClass = nextDaySchedule[0];
+            document.getElementById('nextClass').innerHTML = `Next Class: ${firstClass.class}<br>Teacher: ${firstClass.teacher}<br>Room: ${firstClass.room}<br>Tomorrow at ${firstClass.time}`;
+            startCountdown(new Date(now.toDateString() + ' ' + firstClass.time));
+        }
+
+        function startCountdown(classTime) {
+            const interval = setInterval(() => {
+                const now = new Date();
+                const timeDiff = classTime - now;
+                if (timeDiff <= 0) {
+                    clearInterval(interval);
+                    document.getElementById('countdown').innerHTML = "";
+                    return;
+                }
+                const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+                document.getElementById('countdown').innerHTML = `Countdown: ${hours}h ${minutes}m ${seconds}s`;
+            }, 1000);
+        }
+
+        function toggleFriendSearch() {
+            const friendSearchContainer = document.getElementById('friendSearchContainer');
+            friendSearchContainer.classList.toggle('hidden');
+            friendSearchContainer.classList.toggle('active');
+        }
+
+        function suggestFriends() {
+            const input = document.getElementById('friendInput').value.toLowerCase();
+            const suggestions = document.getElementById('friendSuggestions');
+            suggestions.innerHTML = '';
+            if (input.length === 0) return;
+
+            for (const name in schedules) {
+                if (name.toLowerCase().includes(input) && name !== currentUser) {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.classList.add('suggestion-item');
+                    suggestionItem.innerHTML = `
+                        <div class="friend-checkbox">
+                            <input type="checkbox" id="${name}" name="friends" value="${name}" onchange="showFriendSchedule()">
+                            <label for="${name}">${name}</label>
+                        </div>
+                    `;
+                    suggestions.appendChild(suggestionItem);
+                }
+            }
+        }
+
+        function showFriendSchedule() {
+            const checkboxes = document.querySelectorAll('input[name="friends"]:checked');
+            const friendInfo = document.getElementById('friendInfo');
+            friendInfo.innerHTML = '';
+
+            checkboxes.forEach((checkbox) => {
+                const friendName = checkbox.value;
+                const now = new Date();
+                const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+                const friendSchedule = schedules[friendName][day];
+                let currentClass = `${friendName} is currently not in any classes`;
+                for (const cls of friendSchedule) {
+                    const classTime = new Date(now.toDateString() + ' ' + cls.time);
+                    if (now >= classTime && now <= new Date(classTime.getTime() + 50 * 60 * 1000)) {
+                        currentClass = `${friendName} is currently in ${cls.class} with ${cls.teacher} in room ${cls.room}`;
+                        break;
+                    }
+                }
+                const friendClassInfo = document.createElement('p');
+                friendClassInfo.innerText = currentClass;
+                friendInfo.appendChild(friendClassInfo);
+            });
+        }
+
+        function toggleFullTimetable() {
+            const fullTimetable = document.getElementById('fullTimetable');
+            if (fullTimetable.classList.contains('hidden')) {
+                fullTimetable.classList.remove('hidden');
+                showFullTimetable();
+            } else {
+                fullTimetable.classList.add('hidden');
+                fullTimetable.innerHTML = '';
+            }
+        }
+
+        function showFullTimetable() {
+            const fullTimetable = document.getElementById('fullTimetable');
+            fullTimetable.innerHTML = '';
+
+            const userSchedule = schedules[currentUser];
+            for (const day in userSchedule) {
+                const daySchedule = userSchedule[day];
+                const dayDiv = document.createElement('div');
+                dayDiv.classList.add('day-schedule');
+                const dayTitle = document.createElement('h3');
+                dayTitle.innerText = day;
+                dayDiv.appendChild(dayTitle);
+
+                daySchedule.forEach(cls => {
+                    const classInfo = document.createElement('p');
+                    classInfo.innerText = `${cls.time}: ${cls.class} with ${cls.teacher} in room ${cls.room}`;
+                    dayDiv.appendChild(classInfo);
+                });
+
+                fullTimetable.appendChild(dayDiv);
+            }
+        }
+    </script>
+</body>
+</html>
